@@ -16,6 +16,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.llm-qa-tester.rule=Host(`llm-qa-tester.acion.es`)"
       - "traefik.http.routers.llm-qa-tester.entrypoints=websecure"
+      - "traefik.http.routers.llm-qa-tester.tls=true"
       - "traefik.http.routers.llm-qa-tester.tls.certresolver=myresolver"
       - "traefik.http.services.llm-qa-tester.loadbalancer.server.port=8000"
 
