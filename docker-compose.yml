@@ -1,0 +1,24 @@
+services:
+  llm-qa-tester:
+    image: ghcr.io/chainatao/llm-qa-tester:latest
+    container_name: llm-qa-tester
+    restart: unless-stopped
+
+    environment:
+      LLM_QA_ENDPOINT: ${LLM_QA_ENDPOINT}
+      LLM_QA_SECRET: ${LLM_QA_SECRET}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-60}
+
+    networks:
+      - traefik
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-qa-tester.rule=Host(`llm-qa-tester.acion.es`)"
+      - "traefik.http.routers.llm-qa-tester.entrypoints=websecure"
+      - "traefik.http.routers.llm-qa-tester.tls.certresolver=myresolver"
+      - "traefik.http.services.llm-qa-tester.loadbalancer.server.port=8000"
+
+networks:
+  traefik:
+    external: true
