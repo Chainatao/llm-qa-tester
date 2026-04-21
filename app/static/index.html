@@ -124,6 +124,11 @@
 
         const data = await res.json();
         output.textContent = JSON.stringify(data, null, 2);
+
+        const debugContext = data?.data?.data?.debug_context;
+        if (debugContext?.enabled) {
+          console.info("llm-qa debug_context", debugContext);
+        }
       } catch (err) {
         output.textContent = "Request failed: " + err;
       } finally {
