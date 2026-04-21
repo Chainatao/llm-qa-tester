@@ -1,7 +1,7 @@
 import logging.config
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
@@ -29,6 +29,13 @@ app = FastAPI(
     description="Simple frontend and proxy API to test llm-qa endpoint.",
     version="1.0.0",
 )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    # Avoid repeated browser 404 noise for favicon requests.
+    return Response(status_code=204)
+
 
 app.include_router(router)
 

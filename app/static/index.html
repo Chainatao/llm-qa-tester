@@ -67,15 +67,64 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-    pre {
-      margin-top: 20px;
-      background: #0f1720;
-      color: #d8e7f5;
-      padding: 14px;
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    input[type="password"] {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px 12px;
       border-radius: 10px;
-      overflow: auto;
-      max-height: 420px;
-      font-size: 13px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      color: var(--ink-soft);
+      margin-left: 8px;
+    }
+    .status {
+      margin-top: 10px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+    .result-grid {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .result-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .result-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+    .result-value {
+      white-space: pre-wrap;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .full-width {
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 760px) {
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -83,7 +132,15 @@
   <div class="wrap">
     <div class="card">
       <h1>LLM QA Tester</h1>
-      <p>Paste a question and test your llm-qa service via this proxy.</p>
+      <p>Protected tester for your llm-qa proxy.</p>
+
+      <label for="password">Access password <span id="authPill" class="pill">Not authenticated</span></label>
+      <div class="row">
+        <input type="password" id="password" placeholder="Enter tester password" />
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+      <div id="authStatus" class="status"></div>
 
       <label for="question">Question</label>
       <textarea id="question" placeholder="Write your question..."></textarea>
@@ -92,25 +149,156 @@
       <textarea id="options" placeholder="A. ...&#10;B. ...&#10;C. ...&#10;D. ..."></textarea>
 
       <button id="sendBtn">Ask</button>
-      <pre id="output">Result will appear here.</pre>
+
+      <div class="result-grid" id="resultGrid">
+        <div class="result-card">
+          <h3>Route</h3>
+          <div id="route" class="result-value">-</div>
+        </div>
+        <div class="result-card">
+          <h3>Confidence</h3>
+          <div id="confidence" class="result-value">-</div>
+        </div>
+        <div class="result-card">
+          <h3>Final Response</h3>
+          <div id="finalResponse" class="result-value">-</div>
+        </div>
+        <div class="result-card">
+          <h3>Phase / Intent</h3>
+          <div id="phaseOrIntent" class="result-value">-</div>
+        </div>
+        <div class="result-card full-width">
+          <h3>Reasoning / Explanation</h3>
+          <div id="explanation" class="result-value">-</div>
+        </div>
+        <div class="result-card full-width">
+          <h3>Options Analysis</h3>
+          <div id="optionAnalysis" class="result-value">-</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
+    const password = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const authPill = document.getElementById("authPill");
+    const authStatus = document.getElementById("authStatus");
     const sendBtn = document.getElementById("sendBtn");
     const question = document.getElementById("question");
     const options = document.getElementById("options");
-    const output = document.getElementById("output");
+    const routeEl = document.getElementById("route");
+    const confidenceEl = document.getElementById("confidence");
+    const finalResponseEl = document.getElementById("finalResponse");
+    const phaseOrIntentEl = document.getElementById("phaseOrIntent");
+    const explanationEl = document.getElementById("explanation");
+    const optionAnalysisEl = document.getElementById("optionAnalysis");
+
+    function setAuthUi(isAuthenticated, message = "") {
+      sendBtn.disabled = !isAuthenticated;
+      authPill.textContent = isAuthenticated ? "Authenticated" : "Not authenticated";
+      authStatus.textContent = message;
+    }
+
+    async function refreshAuthStatus() {
+      try {
+        const res = await fetch("/api/auth/status");
+        const data = await res.json();
+        const isAuthenticated = !!data?.data?.authenticated;
+        setAuthUi(isAuthenticated, isAuthenticated ? "Session active." : "Please login to use Ask.");
+      } catch {
+        setAuthUi(false, "Could not verify session.");
+      }
+    }
+
+    async function login() {
+      const value = password.value;
+      if (!value) {
+        setAuthUi(false, "Password is required.");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: value }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data?.success) {
+          setAuthUi(false, data?.detail || "Login failed.");
+          return;
+        }
+
+        password.value = "";
+        setAuthUi(true, "Login successful.");
+      } catch {
+        setAuthUi(false, "Login request failed.");
+      } finally {
+        loginBtn.disabled = false;
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } finally {
+        setAuthUi(false, "Logged out.");
+      }
+    }
+
+    function renderOptionAnalysis(list) {
+      if (!Array.isArray(list) || !list.length) {
+        optionAnalysisEl.textContent = "-";
+        return;
+      }
+
+      const lines = list.map((item) => {
+        const n = item?.option_number ?? "?";
+        const c = item?.literal_classification ?? "-";
+        const m = item?.matched_text ? ` | match: ${item.matched_text}` : "";
+        return `Option ${n}: ${c}${m}`;
+      });
+
+      optionAnalysisEl.textContent = lines.join("\n");
+    }
+
+    function renderResult(upstream) {
+      const route = upstream?.data?.route || {};
+      const answer = upstream?.data?.answer || {};
+
+      routeEl.textContent = route.category || "-";
+      confidenceEl.textContent =
+        typeof route.confidence === "number" ? route.confidence.toFixed(2) : "-";
+
+      if (route.category === "legal") {
+        finalResponseEl.textContent = answer.response ?? "-";
+        phaseOrIntentEl.textContent = answer.phase_used || "-";
+        explanationEl.textContent = answer.reasoning || "-";
+        renderOptionAnalysis(answer.option_analysis);
+      } else {
+        finalResponseEl.textContent = answer.response || "-";
+        phaseOrIntentEl.textContent = answer.intent || "-";
+        explanationEl.textContent =
+          [answer.notes, Array.isArray(answer.steps) ? answer.steps.join("\n") : ""]
+            .filter(Boolean)
+            .join("\n\n") || "-";
+        optionAnalysisEl.textContent = "Not applicable for software route.";
+      }
+    }
 
     async function ask() {
       const q = question.value.trim();
       if (!q) {
-        output.textContent = "Question is required.";
+        explanationEl.textContent = "Question is required.";
         return;
       }
 
       sendBtn.disabled = true;
-      output.textContent = "Loading...";
+      explanationEl.textContent = "Loading...";
 
       try {
         const res = await fetch("/api/ask", {
@@ -123,20 +311,32 @@
         });
 
         const data = await res.json();
-        output.textContent = JSON.stringify(data, null, 2);
+        console.info("llm-qa-tester raw response", data);
+
+        if (!res.ok || !data?.success) {
+          explanationEl.textContent = data?.detail || data?.error || "Request failed.";
+          return;
+        }
+
+        renderResult(data.data);
 
         const debugContext = data?.data?.data?.debug_context;
         if (debugContext?.enabled) {
           console.info("llm-qa debug_context", debugContext);
         }
       } catch (err) {
-        output.textContent = "Request failed: " + err;
+        explanationEl.textContent = "Request failed: " + err;
       } finally {
-        sendBtn.disabled = false;
+        const authRes = await fetch("/api/auth/status");
+        const authData = await authRes.json();
+        sendBtn.disabled = !authData?.data?.authenticated;
       }
     }
 
+    loginBtn.addEventListener("click", login);
+    logoutBtn.addEventListener("click", logout);
     sendBtn.addEventListener("click", ask);
+    refreshAuthStatus();
   </script>
 </body>
 </html>
