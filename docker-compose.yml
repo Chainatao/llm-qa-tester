@@ -18,6 +18,13 @@ services:
 
     labels:
       - "traefik.enable=true"
+      # HTTP → HTTPS redirect (required for Let's Encrypt HTTP-01 challenge on port 80)
+      - "traefik.http.routers.llm-qa-tester-http.rule=Host(`llm-qa-tester.acion.es`)"
+      - "traefik.http.routers.llm-qa-tester-http.entrypoints=web"
+      - "traefik.http.routers.llm-qa-tester-http.middlewares=llm-qa-tester-https-redirect"
+      - "traefik.http.middlewares.llm-qa-tester-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.llm-qa-tester-https-redirect.redirectscheme.permanent=true"
+      # HTTPS
       - "traefik.http.routers.llm-qa-tester.rule=Host(`llm-qa-tester.acion.es`)"
       - "traefik.http.routers.llm-qa-tester.entrypoints=websecure"
       - "traefik.http.routers.llm-qa-tester.tls=true"
