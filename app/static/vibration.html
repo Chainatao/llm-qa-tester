@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibration Test</title>
+  <style>
+    :root {
+      --bg: #f8f7f3;
+      --surface: #ffffff;
+      --ink: #1c2428;
+      --ink-soft: #42535b;
+      --accent: #2f6f64;
+      --border: #d9d5cb;
+      --danger: #b33a3a;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: radial-gradient(circle at 10% 10%, #fff6e8 0%, var(--bg) 40%, #eef4f7 100%);
+      color: var(--ink);
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+    p {
+      color: var(--ink-soft);
+    }
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: 600;
+    }
+    input[type="password"] {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: var(--danger);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      color: var(--ink-soft);
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      color: var(--ink-soft);
+      margin-left: 8px;
+    }
+    .links {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .links a {
+      color: var(--danger);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Vibration Test Page</h1>
+      <p>Send a long vibration order to vibr-relay-service. This action requires authentication.</p>
+
+      <label for="password">Access password <span id="authPill" class="pill">Not authenticated</span></label>
+      <input type="password" id="password" placeholder="Enter tester password" />
+      <div class="row">
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" class="secondary">Logout</button>
+      </div>
+      <div id="authStatus" class="status"></div>
+
+      <div class="row" style="margin-top: 18px;">
+        <button id="sendVibrationBtn">Send Long Vibration Test</button>
+      </div>
+      <div id="vibrationStatus" class="status"></div>
+
+      <div class="links">
+        Back to QA page: <a href="/">LLM QA Tester</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const password = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const sendVibrationBtn = document.getElementById("sendVibrationBtn");
+    const authPill = document.getElementById("authPill");
+    const authStatus = document.getElementById("authStatus");
+    const vibrationStatus = document.getElementById("vibrationStatus");
+
+    function setAuthUi(isAuthenticated, message = "") {
+      sendVibrationBtn.disabled = !isAuthenticated;
+      authPill.textContent = isAuthenticated ? "Authenticated" : "Not authenticated";
+      authStatus.textContent = message;
+    }
+
+    async function refreshAuthStatus() {
+      try {
+        const res = await fetch("/api/auth/status");
+        const data = await res.json();
+        const isAuthenticated = !!data?.data?.authenticated;
+        setAuthUi(
+          isAuthenticated,
+          isAuthenticated ? "Session active." : "Please login to send vibration tests."
+        );
+      } catch {
+        setAuthUi(false, "Could not verify session.");
+      }
+    }
+
+    async function login() {
+      const value = password.value;
+      if (!value) {
+        setAuthUi(false, "Password is required.");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: value }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data?.success) {
+          setAuthUi(false, data?.detail || "Login failed.");
+          return;
+        }
+
+        password.value = "";
+        setAuthUi(true, "Login successful.");
+      } catch {
+        setAuthUi(false, "Login request failed.");
+      } finally {
+        loginBtn.disabled = false;
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } finally {
+        setAuthUi(false, "Logged out.");
+      }
+    }
+
+    async function sendLongVibrationTest() {
+      sendVibrationBtn.disabled = true;
+      vibrationStatus.textContent = "Sending long vibration test...";
+
+      try {
+        const res = await fetch("/api/vibration/test-long", { method: "POST" });
+        const data = await res.json();
+
+        if (!res.ok || !data?.success) {
+          vibrationStatus.textContent = data?.detail || data?.error || "Vibration test failed.";
+          return;
+        }
+
+        const message = data?.data?.message || "Long vibration command sent.";
+        vibrationStatus.textContent = message;
+      } catch (err) {
+        vibrationStatus.textContent = "Vibration test failed: " + err;
+      } finally {
+        const authRes = await fetch("/api/auth/status");
+        const authData = await authRes.json();
+        sendVibrationBtn.disabled = !authData?.data?.authenticated;
+      }
+    }
+
+    loginBtn.addEventListener("click", login);
+    logoutBtn.addEventListener("click", logout);
+    sendVibrationBtn.addEventListener("click", sendLongVibrationTest);
+    refreshAuthStatus();
+  </script>
+</body>
+</html>

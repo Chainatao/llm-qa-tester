@@ -28,8 +28,19 @@ def test_ui_served() -> None:
     assert "LLM QA Tester" in response.text
 
 
+def test_vibration_page_served() -> None:
+    response = client.get("/vibration.html")
+    assert response.status_code == 200
+    assert "Vibration Test Page" in response.text
+
+
 def test_ask_requires_auth_cookie() -> None:
     response = client.post("/api/ask", json={"question": "Legal question"})
+    assert response.status_code == 401
+
+
+def test_vibration_requires_auth_cookie() -> None:
+    response = client.post("/api/vibration/test-long")
     assert response.status_code == 401
 
 
@@ -53,5 +64,22 @@ def test_login_and_ask_success(monkeypatch: pytest.MonkeyPatch) -> None:
     ask_response = client.post("/api/ask", json={"question": "Legal question"})
     assert ask_response.status_code == 200
     body = ask_response.json()
+    assert body["success"] is True
+    assert body["data"]["success"] is True
+
+
+def test_login_and_vibration_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_send_long_vibration_test() -> dict:
+        return {"success": True, "message": "queued"}
+
+    monkeypatch.setattr(api_routes, "send_long_vibration_test", fake_send_long_vibration_test)
+
+    login_response = client.post("/api/auth/login", json={"password": "ui-pass"})
+    assert login_response.status_code == 200
+    assert login_response.json()["success"] is True
+
+    vibr_response = client.post("/api/vibration/test-long")
+    assert vibr_response.status_code == 200
+    body = vibr_response.json()
     assert body["success"] is True
     assert body["data"]["success"] is True

@@ -121,6 +121,13 @@
     .full-width {
       grid-column: 1 / -1;
     }
+    .page-links {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .page-links a { color: var(--accent); font-weight: 600; }
     @media (max-width: 760px) {
       .result-grid {
         grid-template-columns: 1fr;
@@ -176,6 +183,11 @@
           <div id="optionAnalysis" class="result-value">-</div>
         </div>
       </div>
+
+      <div class="page-links">
+        Need vibration tests? Open the dedicated page:
+        <a href="/vibration.html">Vibration Test Page</a>
+      </div>
     </div>
   </div>
 
@@ -206,7 +218,10 @@
         const res = await fetch("/api/auth/status");
         const data = await res.json();
         const isAuthenticated = !!data?.data?.authenticated;
-        setAuthUi(isAuthenticated, isAuthenticated ? "Session active." : "Please login to use Ask.");
+        setAuthUi(
+          isAuthenticated,
+          isAuthenticated ? "Session active." : "Please login to use Ask and vibration test."
+        );
       } catch {
         setAuthUi(false, "Could not verify session.");
       }

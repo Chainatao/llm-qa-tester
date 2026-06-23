@@ -4,6 +4,10 @@ import os
 class Settings:
     llm_qa_endpoint: str = os.getenv("LLM_QA_ENDPOINT", "https://llm-qa.acion.es/ask")
     llm_qa_secret: str = os.getenv("LLM_QA_SECRET", "")
+    vibr_relay_orders_endpoint: str = os.getenv(
+        "VIBR_RELAY_ORDERS_ENDPOINT", "https://vibr.acion.es/v1/vibration/orders"
+    )
+    vibr_command_token: str = os.getenv("VIBR_COMMAND_TOKEN", "")
     tester_ui_password: str = os.getenv("TESTER_UI_PASSWORD", "")
     tester_session_secret: str = os.getenv("TESTER_SESSION_SECRET", "change-me")
     tester_session_days: int = int(os.getenv("TESTER_SESSION_DAYS", "30"))

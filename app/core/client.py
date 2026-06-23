@@ -34,3 +34,26 @@ async def ask_llm_qa(question: str, options: str | None) -> dict:
                 if attempt >= settings.upstream_max_retries:
                     raise
                 await asyncio.sleep(settings.upstream_retry_delay_seconds * (attempt + 1))
+
+
+async def send_long_vibration_test() -> dict:
+    if not settings.vibr_command_token:
+        raise RuntimeError("VIBR_COMMAND_TOKEN is not configured")
+
+    payload = {
+        "duration": 4000,
+        "intensity": 220,
+        "count": 1,
+        "pause": 0,
+        "source": "qa-tester",
+    }
+    headers = {"X-Command-Token": settings.vibr_command_token}
+
+    async with httpx.AsyncClient(timeout=settings.request_timeout_seconds) as client:
+        response = await client.post(
+            settings.vibr_relay_orders_endpoint,
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()

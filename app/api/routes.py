@@ -5,7 +5,7 @@ import time
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from app.core.client import ask_llm_qa
+from app.core.client import ask_llm_qa, send_long_vibration_test
 from app.schemas.models import APIResponse, AskRequest, LoginRequest
 from app.utils.config import settings
 
@@ -105,5 +105,23 @@ async def api_ask(payload: AskRequest, request: Request) -> APIResponse:
         raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Upstream connection error: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/api/vibration/test-long", response_model=APIResponse)
+async def api_vibration_test_long(request: Request) -> APIResponse:
+    if not _is_request_authenticated(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
+    try:
+        upstream = await send_long_vibration_test()
+        return APIResponse(success=True, data=upstream, error=None)
+    except httpx.HTTPStatusError as exc:
+        body = exc.response.text
+        detail = f"Vibration service returned {exc.response.status_code}: {body}"
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Vibration service connection error: {exc}") from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

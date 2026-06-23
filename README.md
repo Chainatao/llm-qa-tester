@@ -5,6 +5,7 @@ Deployable FastAPI microservice with a simple frontend to test the llm-qa questi
 This service provides:
 - A browser UI to paste a question and optional options block.
 - A backend proxy endpoint that calls `llm-qa /ask` server-side.
+- A browser button to send a long vibration test command via `vibr-relay-service`.
 - Secret handling on the server side (no secret exposed in browser JS).
 
 ## DSRS Compliance Notes
@@ -43,6 +44,8 @@ Copy `.env.example` to `.env` and configure:
 ```dotenv
 LLM_QA_ENDPOINT=https://llm-qa.acion.es/ask
 LLM_QA_SECRET=your_llm_qa_api_secret
+VIBR_RELAY_ORDERS_ENDPOINT=https://vibr.acion.es/v1/vibration/orders
+VIBR_COMMAND_TOKEN=your_vibration_command_token
 REQUEST_TIMEOUT_SECONDS=60
 ```
 
@@ -57,10 +60,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Open:
 - `http://localhost:8000/`
+- `http://localhost:8000/vibration.html`
 
 API endpoints:
 - `GET /health`
 - `POST /api/ask`
+- `POST /api/vibration/test-long`
 
 ## First-Time Server Setup (Minimal)
 
